@@ -1,0 +1,27 @@
+                precision    recall  f1-score   support
+
+         audio       0.55      0.75      0.63         8
+          bugs       0.34      0.36      0.35        58
+        camera       0.00      0.00      0.00         3
+    characters       0.44      0.80      0.57        10
+       content       0.23      0.38      0.29        61
+      controls       0.58      0.69      0.63        32
+       crashes       0.52      0.55      0.54        20
+    difficulty       0.35      0.37      0.36        79
+         grind       0.37      0.43      0.39        70
+     mechanics       0.39      0.36      0.38       110
+  monetization       0.35      0.67      0.46         9
+   multiplayer       0.19      0.44      0.27         9
+not_actionable       0.84      0.42      0.56       348
+    onboarding       0.27      0.60      0.37        20
+   performance       0.29      0.54      0.38        13
+         price       0.43      0.91      0.59        11
+         saves       0.29      0.33      0.31         6
+         story       0.40      0.47      0.43        34
+       support       0.26      0.55      0.35        22
+            ui       0.34      0.38      0.36        53
+       visuals       0.31      0.38      0.34        21
+
+      accuracy                           0.43       997
+     macro avg       0.37      0.49      0.41       997
+  weighted avg       0.53      0.43      0.45       997

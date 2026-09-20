@@ -1,0 +1,38 @@
+{
+  "best_C": 8,
+  "train_sentences": 3978,
+  "test_sentences": 997,
+  "test_games": [
+    "Celeste",
+    "Starfield",
+    "Valheim",
+    "Vampire Survivors"
+  ],
+  "results": {
+    "aspect level (21 classes)": {
+      "majority baseline": {
+        "accuracy": 0.349,
+        "macro_f1": 0.025
+      },
+      "classifier": {
+        "accuracy": 0.433,
+        "macro_f1": 0.407
+      }
+    },
+    "category level (6 classes)": {
+      "majority baseline": {
+        "accuracy": 0.349,
+        "macro_f1": 0.086
+      },
+      "templates (old method)": {
+        "accuracy": 0.243,
+        "macro_f1": 0.277
+      },
+      "classifier": {
+        "accuracy": 0.538,
+        "macro_f1": 0.524
+      }
+    }
+  },
+  "final_model_trained_on": 4975
+}
