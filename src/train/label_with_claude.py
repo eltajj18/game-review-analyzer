@@ -21,18 +21,20 @@ try:
 except ImportError:
     pass
 
-from src.analyze.aspects import ASPECTS
+from src.analyze.aspects import LABEL_CHOICES
 from src.analyze.label import LLM_MODEL
 from src.train.build_dataset import TRAIN_DIR
 
 BATCH_SIZE = 40
-ASPECT_LIST = "\n".join(f'- "{key}": {desc}' for key, (_, _, desc) in ASPECTS.items())
+ASPECT_LIST = "\n".join(f'- "{key}": {desc}' for key, desc in LABEL_CHOICES.items())
 
 
 def label_batch(client, sentences: list[str]) -> dict[int, str]:
     numbered = "\n".join(f"[{i}] {s}" for i, s in enumerate(sentences))
     prompt = f"""Each sentence below is a complaint from a Steam game review.
-Classify each one into exactly one aspect: the main thing the player is complaining about.
+These sentences were picked automatically, so some are not complaints at all.
+Classify each one into exactly one label: the main thing the player is complaining about,
+or "not_complaint" if it isn't a complaint.
 
 Aspects:
 {ASPECT_LIST}
@@ -50,7 +52,7 @@ Respond with ONLY a JSON object mapping each sentence number to an aspect key, n
     )
     text = "".join(block.text for block in response.content if block.type == "text")
     raw = json.loads(re.sub(r"```(?:json)?", "", text).strip())
-    return {int(k): v for k, v in raw.items() if v in ASPECTS and str(k).isdigit()}
+    return {int(k): v for k, v in raw.items() if v in LABEL_CHOICES and str(k).isdigit()}
 
 
 def main():

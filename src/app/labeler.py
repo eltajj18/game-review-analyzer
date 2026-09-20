@@ -8,10 +8,14 @@ make the agreement number meaningless. Labels are saved after every click, so yo
 can stop and come back.
 """
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+# "streamlit run" only puts this file's folder on the import path, so add the project root
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.analyze.aspects import ASPECTS
 
@@ -73,8 +77,13 @@ for i, key in enumerate(keys):
         st.rerun()
 
 st.divider()
-left, right = st.columns(2)
-if left.button("Skip (unclear or not a complaint)", width="stretch"):
+st.caption("Not every sentence is a complaint: the sentiment filter lets some praise and "
+           "neutral text through. Marking those measures how good that filter is.")
+left, middle, right = st.columns(3)
+if left.button("Not a complaint (praise/neutral)", width="stretch"):
+    save(current["sent_id"], "not_complaint")
+    st.rerun()
+if middle.button("Unclear / can't tell", width="stretch"):
     save(current["sent_id"], "unclear")
     st.rerun()
 if right.button("Undo last", width="stretch", disabled=done.empty):

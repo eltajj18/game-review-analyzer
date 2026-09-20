@@ -15,7 +15,7 @@ import joblib
 import pandas as pd
 from sklearn.metrics import accuracy_score, cohen_kappa_score, f1_score
 
-from src.analyze.aspects import ASPECTS, MODEL_PATH
+from src.analyze.aspects import LABEL_CHOICES, MODEL_PATH, NON_COMPLAINT, canonical
 from src.train.build_dataset import TRAIN_DIR
 from src.train.train_classifier import to_category
 
@@ -36,18 +36,34 @@ def main():
     from sentence_transformers import SentenceTransformer
 
     human = pd.read_csv(HUMAN_PATH)
-    human = human[human["aspect"].isin(ASPECTS)]  # drop "unclear"
+    human["aspect"] = human["aspect"].map(canonical)
+    human = human[human["aspect"].isin(LABEL_CHOICES)]  # drops "unclear"
     data = (pd.read_csv(TRAIN_DIR / "dataset.csv")
             .merge(human.rename(columns={"aspect": "human"}), on="sent_id")
             .merge(pd.read_csv(TRAIN_DIR / "labels.csv").drop_duplicates("sent_id")
                    .rename(columns={"aspect": "claude"}), on="sent_id"))
+    data["claude"] = data["claude"].map(canonical)
     if data.empty:
         raise SystemExit("No overlap between your labels and Claude's. Label some sentences first.")
 
     bundle = joblib.load(MODEL_PATH)
     embedder = SentenceTransformer(bundle["embedding_model"])
-    data["model"] = bundle["model"].predict(
-        embedder.encode(data["sentence"].tolist(), normalize_embeddings=True))
+    X = embedder.encode(data["sentence"].tolist(), normalize_embeddings=True)
+    data["model"] = (bundle.get("aspect_model") or bundle["model"]).predict(X)
+
+    # Stage 1 judged separately: did it spot the sentences that aren't complaints?
+    detector = bundle.get("complaint_model")
+    if detector is not None:
+        predicted_complaint = detector.predict(X)
+        actually_complaint = data["human"] != NON_COMPLAINT
+        agree = (predicted_complaint == actually_complaint).mean()
+        caught = predicted_complaint[~actually_complaint]
+        print(f"\nComplaint detector vs your labels: {agree:.0%} agreement; "
+              f"it correctly rejected {(~caught).sum()} of {len(caught)} non-complaints")
+
+    # Aspect scores use real complaints only, so they stay comparable across runs
+    aspects_only = (data["human"] != NON_COMPLAINT) & (data["claude"] != NON_COMPLAINT)
+    data = data[aspects_only]
 
     rows = [
         compare("Claude vs human (teacher quality)", data["human"], data["claude"]),

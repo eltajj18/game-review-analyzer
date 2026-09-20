@@ -32,7 +32,8 @@ import pandas as pd
 
 from src.analyze.label import label_topics
 from src.analyze.aspects import MODEL_PATH
-from src.analyze.small import classifier_group, labels_to_frame, llm_group, template_group
+from src.analyze.small import (classifier_group, drop_non_complaints, labels_to_frame,
+                               llm_group, template_group)
 from src.analyze.topics import (
     add_sentiment, auto_min_topic_size, build_stop_words, cluster_complaints,
     load_reviews, monthly_timeline, rank_topics,
@@ -80,8 +81,9 @@ def find_pain_points(complaints: pd.DataFrame, game: str, min_topic_size: int | 
 
 def run(appid: int, skip_collect: bool = False, max_negative: int | None = None,
         max_positive: int | None = 5000, language: str = "english",
-        min_topic_size: int | None = None, min_confidence: float = 0.9,
-        use_llm: bool = True, game: str | None = None) -> pd.DataFrame:
+        min_topic_size: int | None = None, min_confidence: float = 0.98,
+        use_llm: bool = True, game: str | None = None,
+        classifier_filter: bool = True) -> pd.DataFrame:
     out_dir = DATA_DIR / str(appid)
     out_dir.mkdir(parents=True, exist_ok=True)
     game = game or get_game_name(appid)
@@ -107,6 +109,8 @@ def run(appid: int, skip_collect: bool = False, max_negative: int | None = None,
     complaints = sentences[
         (sentences["sentiment"] == "NEGATIVE") & (sentences["confidence"] >= min_confidence)
     ].reset_index(drop=True)
+    if classifier_filter:
+        complaints = drop_non_complaints(complaints)
     print(f"  {len(complaints)} complaint sentences in {complaints['review_id'].nunique()} reviews")
     if len(complaints) < MIN_COMPLAINTS:
         raise SystemExit("Too few complaints to analyze. Good news for the developer!")
@@ -155,6 +159,10 @@ def main():
     parser.add_argument("--language", default="english")
     parser.add_argument("--min-topic-size", type=int, default=None,
                         help="Override clustering granularity (default: scales with data)")
+    parser.add_argument("--sentiment-threshold", type=float, default=0.98,
+                        help="How sure the model must be that a sentence is a complaint (0-1)")
+    parser.add_argument("--no-classifier-filter", action="store_true",
+                        help="Skip the trained complaint filter (sentiment only)")
     parser.add_argument("--no-llm", action="store_true", help="Never call the Claude API")
     args = parser.parse_args()
 
@@ -164,7 +172,8 @@ def main():
         print(f"Found: {game} (app {args.appid})")
 
     run(args.appid, args.skip_collect, args.max_negative, args.max_positive, args.language,
-        args.min_topic_size, use_llm=not args.no_llm, game=game)
+        args.min_topic_size, args.sentiment_threshold, use_llm=not args.no_llm, game=game,
+        classifier_filter=not args.no_classifier_filter)
 
 
 if __name__ == "__main__":

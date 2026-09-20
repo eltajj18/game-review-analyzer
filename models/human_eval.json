@@ -1,0 +1,26 @@
+{
+  "n_sentences": 78,
+  "results": [
+    {
+      "comparison": "Claude vs human (teacher quality)",
+      "aspect_accuracy": 0.487,
+      "aspect_macro_f1": 0.319,
+      "aspect_kappa": 0.411,
+      "category_accuracy": 0.603
+    },
+    {
+      "comparison": "classifier vs human (honest score)",
+      "aspect_accuracy": 0.359,
+      "aspect_macro_f1": 0.292,
+      "aspect_kappa": 0.286,
+      "category_accuracy": 0.487
+    },
+    {
+      "comparison": "classifier vs Claude (imitation)",
+      "aspect_accuracy": 0.577,
+      "aspect_macro_f1": 0.587,
+      "aspect_kappa": 0.528,
+      "category_accuracy": 0.641
+    }
+  ]
+}

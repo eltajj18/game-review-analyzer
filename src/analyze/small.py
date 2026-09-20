@@ -1,3 +1,5 @@
+
+
 """
 Pain-point detection for games with few complaints, where clustering has too little data.
 
@@ -17,7 +19,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from src.analyze.aspects import ASPECTS, MODEL_PATH
+from src.analyze.aspects import ASPECTS, MODEL_PATH, NON_COMPLAINT
 from src.analyze.label import CATEGORIES, LLM_MODEL
 from src.analyze.topics import EMBEDDING_MODEL
 
@@ -87,21 +89,51 @@ def template_group(sentences: list[str], threshold: float = 0.35) -> tuple[list[
     return topics, labels
 
 
-def classifier_group(sentences: list[str], min_confidence: float = 0.4) -> tuple[list[int], dict]:
+def _load():
     import joblib
     from sentence_transformers import SentenceTransformer
 
     bundle = joblib.load(MODEL_PATH)
-    model = bundle["model"]
-    embeddings = SentenceTransformer(bundle["embedding_model"]).encode(
-        sentences, normalize_embeddings=True)
-    probs = model.predict_proba(embeddings)
+    return bundle, SentenceTransformer(bundle["embedding_model"])
+
+
+def predict_aspects(sentences: list[str]) -> tuple[list[str], "np.ndarray"]:
+    """Predicted aspect per sentence and its probability (stage 2 model)."""
+    bundle, embedder = _load()
+    model = bundle.get("aspect_model") or bundle["model"]  # "model": older single-model bundles
+    probs = model.predict_proba(embedder.encode(sentences, normalize_embeddings=True))
+    return [model.classes_[i] for i in probs.argmax(axis=1)], probs.max(axis=1)
+
+
+
+def drop_non_complaints(complaints: pd.DataFrame, min_confidence: float = 0.25) -> pd.DataFrame:
+    """
+    Stage 1: the sentiment model only knows "negative", so it keeps neutral narration and
+    backhanded praise. This trained detector judges "is this a complaint at all".
+    """
+    if not MODEL_PATH.exists():
+        return complaints
+    bundle, embedder = _load()
+    detector = bundle.get("complaint_model")
+    if detector is None:  # older bundle without the detector
+        return complaints
+
+    probs = detector.predict_proba(embedder.encode(complaints["sentence"].tolist(),
+                                                   normalize_embeddings=True))
+    is_complaint = probs[:, list(detector.classes_).index(True)] >= min_confidence
+    removed = int((~is_complaint).sum())
+    if removed:
+        print(f"  complaint detector dropped {removed} sentences that aren't complaints")
+    return complaints[is_complaint].reset_index(drop=True)
+
+
+def classifier_group(sentences: list[str], min_confidence: float = 0.4) -> tuple[list[int], dict]:
+    predicted, confidence = predict_aspects(sentences)
 
     topic_of = {aspect: i for i, aspect in enumerate(ASPECTS)}  # stable ids across runs
     topics, labels = [], {}
-    for p in probs:
-        aspect = model.classes_[p.argmax()]
-        if p.max() < min_confidence or aspect not in topic_of:
+    for aspect, conf in zip(predicted, confidence):
+        if conf < min_confidence or aspect not in topic_of:
             topics.append(-1)
             continue
         topic = topic_of[aspect]
